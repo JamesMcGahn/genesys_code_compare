@@ -1,0 +1,12 @@
+[app]
+region = "us_east"
+client_id = "your-oauth-client-id"
+redirect_uri = "http://localhost:8080/callback"
+
+[regions.us_east]
+login_url = "https://login.mypurecloud.com"
+api_url = "https://api.mypurecloud.com"
+
+[regions.eu_west]
+login_url = "https://login.mypurecloud.ie"
+api_url = "https://api.mypurecloud.ie"
