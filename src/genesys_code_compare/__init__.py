@@ -1,2 +1,6 @@
+from .app import App
+
+
 def main() -> None:
-    print("Hello from genesys-code-compare!")
+    app = App()
+    app.run()
