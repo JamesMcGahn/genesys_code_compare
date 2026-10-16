@@ -7,7 +7,9 @@ authors = [
     { name = "James McGahn", email = "" }
 ]
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "questionary>=2.1.1",
+]
 
 [project.scripts]
 start = "genesys_code_compare:main"
@@ -15,3 +17,8 @@ start = "genesys_code_compare:main"
 [build-system]
 requires = ["uv_build>=0.9.10,<0.10.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
