@@ -1,3 +1,3 @@
-from .regions import Regions
+from .regions import Region
 
-__all__ = ["Regions"]
+__all__ = ["Region"]

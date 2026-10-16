@@ -2,7 +2,7 @@ from genesys_code_compare.config import get_config_path, get_default_config, loa
 from pathlib import Path
 import pytest
 from genesys_code_compare.errors import ConfigError
-from genesys_code_compare.models.config import Regions
+from genesys_code_compare.models.config import Region
 import tomllib
 
 
@@ -42,7 +42,7 @@ api_url = "https://api.mypurecloud.com"
 
     result = load_config(config_file)
     assert result == [
-        Regions(
+        Region(
             name="us_east",
             login_url="https://login.mypurecloud.com",
             api_url="https://api.mypurecloud.com",
@@ -73,7 +73,7 @@ def test_load_with_no_login_url(tmp_path):
 api_url = "https://api.mypurecloud.com"
 """)
 
-    with pytest.raises(ConfigError, match="No Regions exist"):
+    with pytest.raises(ConfigError, match="No Region exist"):
         load_config(config_file)
 
 
@@ -84,7 +84,7 @@ def test_load_with_no_api_url(tmp_path):
 login_url = "https://login.mypurecloud.com"
 """)
 
-    with pytest.raises(ConfigError, match="No Regions exist"):
+    with pytest.raises(ConfigError, match="No Region exist"):
         load_config(config_file)
 
 

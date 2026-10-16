@@ -3,7 +3,7 @@ import sys
 import tomllib
 from .cli import print_error
 from .errors import ConfigError
-from .models.config import Regions
+from .models.config import Region
 
 
 def get_default_config() -> Path:
@@ -23,7 +23,7 @@ def get_config_path(external_dir: Path | None = None) -> Path:
     return path
 
 
-def load_config(config_path: Path | None = None) -> list[Regions]:
+def load_config(config_path: Path | None = None) -> list[Region]:
     if config_path is None:
         config_path = get_config_path()
     elif not config_path.is_file():
@@ -55,8 +55,8 @@ def load_config(config_path: Path | None = None) -> list[Regions]:
                 msg = f"Region - {k} - does NOT have a login url. Skipping..."
                 print_error(msg)
                 continue
-            region_list.append(Regions(name=k, login_url=login_url, api_url=api_url))
+            region_list.append(Region(name=k, login_url=login_url, api_url=api_url))
         if not region_list:
-            msg = "Failed to load config file. No Regions exist."
+            msg = "Failed to load config file. No Region exist."
             raise ConfigError(msg)
         return region_list
