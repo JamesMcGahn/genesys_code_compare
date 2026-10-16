@@ -1,5 +1,15 @@
-from genesys_code_compare.config import get_config_path
+from genesys_code_compare.config import get_config_path, get_default_config, load_config
 from pathlib import Path
+import pytest
+from genesys_code_compare.errors import ConfigError
+from genesys_code_compare.models.config import Regions
+import tomllib
+
+
+def test_get_default_path():
+    project_root = Path(__file__).resolve().parents[1]
+    package_folder = project_root / "src" / "genesys_code_compare"
+    assert package_folder / "default_config.toml" == get_default_config()
 
 
 def test_get_external_config():
@@ -11,19 +21,97 @@ def test_get_external_config():
 
 def test_get_default_config():
     project_root = Path(__file__).resolve().parents[1]
-    external_file = project_root / "config.toml"
+    package_folder = project_root / "src" / "genesys_code_compare"
+    assert package_folder / "default_config.toml" == get_config_path(package_folder)
 
-    try:
-        if external_file.exists():
-            external_file.rename("./__test_config.toml")
-            print("renamed - config to __test_config for testing.")
 
-        assert (
-            project_root / "src" / "genesys_code_compare" / "default_config.toml"
-            == get_config_path()
+def test_missing_config_file(tmp_path):
+    missing_file = tmp_path / "missing.toml"
+
+    with pytest.raises(ConfigError, match="does NOT exist"):
+        load_config(missing_file)
+
+
+def test_valid_toml(tmp_path):
+    config_file = tmp_path / "config.toml"
+    config_file.write_text("""
+[regions.us_east]
+login_url = "https://login.mypurecloud.com"
+api_url = "https://api.mypurecloud.com"
+""")
+
+    result = load_config(config_file)
+    assert result == [
+        Regions(
+            name="us_east",
+            login_url="https://login.mypurecloud.com",
+            api_url="https://api.mypurecloud.com",
         )
-    finally:
-        renamed_file = project_root / "__test_config.toml"
-        if renamed_file.exists():
-            renamed_file.rename("config.toml")
-            print("renamed - config back to correct name.")
+    ]
+
+
+def test_load_with_no_regions(tmp_path):
+    config_file = tmp_path / "config.toml"
+    config_file.write_text("""""")
+
+    with pytest.raises(ConfigError, match="Config file doesn't have any regions"):
+        load_config(config_file)
+
+
+def test_load_with_no_regions(tmp_path):
+    config_file = tmp_path / "config.toml"
+    config_file.write_text("""""")
+
+    with pytest.raises(ConfigError, match="Config file doesn't have any regions"):
+        load_config(config_file)
+
+
+def test_load_with_no_login_url(tmp_path):
+    config_file = tmp_path / "config.toml"
+    config_file.write_text("""
+[regions.us_east]
+api_url = "https://api.mypurecloud.com"
+""")
+
+    with pytest.raises(ConfigError, match="No Regions exist"):
+        load_config(config_file)
+
+
+def test_load_with_no_api_url(tmp_path):
+    config_file = tmp_path / "config.toml"
+    config_file.write_text("""
+[regions.us_east]
+login_url = "https://login.mypurecloud.com"
+""")
+
+    with pytest.raises(ConfigError, match="No Regions exist"):
+        load_config(config_file)
+
+
+def test_load_not_formatted(tmp_path):
+    config_file = tmp_path / "config.toml"
+    config_file.write_text("""
+[regions]
+login_url = "https://login.mypurecloud.com"
+""")
+
+    with pytest.raises(ConfigError, match="formatted improperly"):
+        load_config(config_file)
+
+
+def test_load_not_invalid_toml(tmp_path):
+    config_file = tmp_path / "config.toml"
+    config_file.write_text("""
+[regions
+login_url = "https://login.mypurecloud.com"
+""")
+
+    with pytest.raises(tomllib.TOMLDecodeError):
+        load_config(config_file)
+
+
+def test_load_no_file(tmp_path):
+    config_file = tmp_path / "config.toml"
+
+    with pytest.raises(ConfigError, match="Config file does NOT exist."):
+        load_config(config_file)
