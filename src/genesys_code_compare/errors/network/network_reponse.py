@@ -1,7 +1,11 @@
-class NetworkResponseException(Exception):
-    """Rule has duplicate name."""
+from typing import Any
 
-    def __init__(self, message=None):
+
+class NetworkResponseException(Exception):
+
+    def __init__(self, message=None, status: int | None = None, data: Any = None):
+        self.status = status
+        self.data = data
         if message is None:
             message = (
                 "NetworkResponseException: received a failed response from server."
