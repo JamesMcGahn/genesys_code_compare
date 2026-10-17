@@ -13,6 +13,7 @@ from .models.network import NetworkRequest, NetworkResponse, AccessToken
 from .models.genesys import ClientCredentials
 from .models.config import Region
 import time
+from .errors.network import NotAuthenticatedException
 
 
 class GenesysAPI(BaseApi):
@@ -25,12 +26,12 @@ class GenesysAPI(BaseApi):
     def authenticate(
         self, client_credentials: ClientCredentials, region: Region
     ) -> AccessToken:
-        authorization = base64.b64encode(
-            bytes(
-                client_credentials.client_id + ":" + client_credentials.client_secret,
-                "ISO-8859-1",
-            )
-        ).decode("ascii")
+        credentials = (
+            f"{client_credentials.client_id}:{client_credentials.client_secret}"
+        )
+        authorization = base64.b64encode(bytes(credentials, "ISO-8859-1")).decode(
+            "ascii"
+        )
 
         request_headers = {
             "Authorization": f"Basic {authorization}",
@@ -48,9 +49,10 @@ class GenesysAPI(BaseApi):
         response = self._execute(request)
         self._handle_response(response)
 
-        if "access_token" not in response.data:
-            # TODO: change to more meaningful error
-            raise Exception
+        if response.data is None or "access_token" not in response.data:
+            raise NotAuthenticatedException(
+                "access token not in payload.", response.status, response.data
+            )
 
         return AccessToken(
             access_token=response.data["access_token"],

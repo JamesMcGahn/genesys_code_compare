@@ -29,12 +29,31 @@ class BaseApi:
         return self._client.execute(request)
 
     def _handle_response(self, response: NetworkResponse):
+        error_message = ""
+        if response.data is not None and "error" in response.data:
+            payload_error = response.data["error"]
+            error_message = f"{payload_error}"
+            if "description" in response.data:
+                description = response.data["description"]
+                error_message = f"{payload_error}: {description}"
 
         match response.status:
             case 0:
-                raise NetworkResponseException
+                raise NetworkResponseException(
+                    error_message or None, response.status, response.message
+                )
+            case 400:
+                if "invalid_client" in error_message:
+                    raise NotAuthenticatedException(
+                        error_message or None, response.status, response.message
+                    )
+                raise NetworkResponseException(
+                    error_message or None, response.status, response.message
+                )
             case 401:
-                raise NotAuthenticatedException
+                raise NotAuthenticatedException(
+                    error_message or None, response.status, response.message
+                )
             case 429:
                 retry_after = response.headers.get("Retry-After")
 
@@ -43,11 +62,17 @@ class BaseApi:
                     self._network_throttle.delay(delay)
 
                 self._network_throttle.increase_wait_interval()
-                raise RetryableNetworkException
+                raise RetryableNetworkException(
+                    error_message or None, response.status, response.message
+                )
             case 408 | 500 | 502 | 503 | 504:
                 self._network_throttle.delay(5.0)
-                raise RetryableNetworkException
+                raise RetryableNetworkException(
+                    error_message or None, response.status, response.message
+                )
             case status if status >= 400:
-                raise NetworkResponseException
+                raise NetworkResponseException(
+                    error_message or None, response.status, response.message
+                )
             case _:
                 return
