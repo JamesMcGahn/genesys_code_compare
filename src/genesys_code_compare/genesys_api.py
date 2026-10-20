@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
+from dataclasses import replace
 
 if TYPE_CHECKING:
     from .network.network_client import NetworkClient
@@ -10,7 +11,7 @@ import base64
 from .network.base_api import BaseApi
 from .enums import HTTPMETHOD
 from .models.network import NetworkRequest, NetworkResponse, AccessToken
-from .models.genesys import ClientCredentials, BusinessUnit
+from .models.genesys import ClientCredentials, BusinessUnit, ActivityCode
 from .models.config import Region
 import time
 from .errors.network import NotAuthenticatedException, NetworkResponseException
@@ -84,16 +85,86 @@ class GenesysAPI(BaseApi):
 
         return self._parse_business_units(response)
 
+    def get_business_unit_activity_codes(
+        self, access_token: AccessToken, region: Region, business_unit: BusinessUnit
+    ):
+
+        url = f"{region.api_url}/api/v2/workforcemanagement/businessunits/{business_unit.bu_id}/activitycodes"
+        request_headers = {
+            "Authorization": f"Bearer {access_token.access_token}",
+            "Content-Type": "application/json",
+        }
+
+        request = NetworkRequest(
+            method=HTTPMETHOD.GET,
+            headers=request_headers,
+            url=url,
+        )
+
+        self._network_throttle.wait()
+        self.cli.print_info(
+            f"Sending request for business unit - {business_unit.name} - activity codes."
+        )
+        response = self._execute(request)
+        self._handle_response(response)
+        print(response)
+        activity_codes = self._parse_activity_codes(response, business_unit)
+
+        return replace(business_unit, activity_codes=tuple(activity_codes))
+
+    def _parse_activity_codes(
+        self, response: NetworkResponse, business_unit: BusinessUnit
+    ) -> list[ActivityCode]:
+        payload = response.data
+        if payload is None or "entities" not in payload:
+            error_message = "No Activity Codes were included in the response."
+            self.cli.print_error(error_message)
+            raise NetworkResponseException(error_message, response.status, payload)
+
+        entities: list[dict[str, Any]] = payload["entities"]
+        activity_code_list = []
+        for activity in entities:
+            is_active = activity.get("active", False)
+            is_default = activity.get("defaultCode", False)
+            category = activity.get("category")
+            act_name = activity.get("name", "")
+            act_id = activity.get("id", None)
+
+            if not is_active:
+                continue
+
+            if not act_id:
+                self.cli.print_warn(
+                    f"{business_unit.name} Skipping Activity Code - {act_name} does not have an ID."
+                )
+                continue
+
+            default_name_changed = True if is_default and not act_name else False
+            name_transform = category if not act_name else act_name
+
+            ac = ActivityCode(
+                ac_id=act_id,
+                name=name_transform,
+                default_code=is_default,
+                category=category,
+                default_name_changed=default_name_changed,
+            )
+            activity_code_list.append(ac)
+        self.cli.print_status(
+            f"Successfully received {len(activity_code_list)} activity codes for {business_unit.name}."
+        )
+        if not activity_code_list:
+            self.cli.print_warn(
+                f"{business_unit.name} - does not have any active activity codes."
+            )
+        return activity_code_list
+
     def _parse_business_units(self, response: NetworkResponse) -> list[BusinessUnit]:
         payload = response.data
         if payload is None or "entities" not in payload:
             error_message = "No Business Units were included in the response."
             self.cli.print_error(error_message)
-            raise NetworkResponseException(
-                "No Business Units were included in the response.",
-                response.status,
-                payload,
-            )
+            raise NetworkResponseException(error_message, response.status, payload)
 
         entities: list[dict[str, Any]] = payload["entities"]
 

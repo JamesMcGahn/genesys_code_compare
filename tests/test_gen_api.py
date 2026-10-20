@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
 import pytest
 
@@ -9,10 +9,15 @@ from genesys_code_compare.errors.network import (
 )
 from genesys_code_compare.genesys_api import GenesysAPI
 from genesys_code_compare.models.config import Region
-from genesys_code_compare.models.genesys import ClientCredentials, BusinessUnit
+from genesys_code_compare.models.genesys import (
+    ClientCredentials,
+    BusinessUnit,
+    ActivityCode,
+)
 from genesys_code_compare.models.network import NetworkResponse, AccessToken
 from genesys_code_compare.network import NetworkClient, NetworkThrottle
 from genesys_code_compare.cli import CLI
+from dataclasses import replace
 
 
 @pytest.fixture
@@ -55,6 +60,11 @@ def region():
         login_url="https://login.example.invalid/oauth/token",
         api_url="https://api.example.invalid",
     )
+
+
+@pytest.fixture
+def business_unit():
+    return BusinessUnit("1f271csd-ff47-4ead-8343-323ac1751ed6", "Test BU")
 
 
 def test_authenticate_returns_token(
@@ -288,7 +298,6 @@ def test_skip_bu_no_name_response(
     result = api.get_business_units(access_token, region)
     throttle.wait.assert_called_once()
     cli.print_info.assert_called_once_with("Sending request for business units.")
-    cli.print_info.assert_called_once_with("Sending request for business units.")
     cli.print_status.assert_called_once_with(f"Successfully received 1 business units.")
     cli.print_warn.assert_called_once_with(
         f"Skipping BU - 1f271csd-aa47-4ead-8343-323ac1751ed6 as it doesnt have a name"
@@ -331,7 +340,6 @@ def test_skip_bu_no_id_response(
     result = api.get_business_units(access_token, region)
     throttle.wait.assert_called_once()
     cli.print_info.assert_called_once_with("Sending request for business units.")
-    cli.print_info.assert_called_once_with("Sending request for business units.")
     cli.print_status.assert_called_once_with(f"Successfully received 1 business units.")
     cli.print_warn.assert_called_once_with(
         f"Skipping BU - Test BU 2 as it doesnt have an id"
@@ -340,9 +348,7 @@ def test_skip_bu_no_id_response(
 
 
 @pytest.mark.parametrize("payload", [None, {}])
-def test_skip_bu_no_data_response(
-    api, network_client, throttle, cli, region, access_token, payload
-):
+def test_skip_bu_no_data_response(api, network_client, region, access_token, payload):
     network_client.execute.return_value = NetworkResponse(
         ok=True,
         status=200,
@@ -352,12 +358,317 @@ def test_skip_bu_no_data_response(
     with pytest.raises(NetworkResponseException) as exc_info:
         api.get_business_units(access_token, region)
 
-    throttle.wait.assert_called_once()
-    cli.print_info.assert_called_once_with("Sending request for business units.")
-    cli.print_error.assert_called_once_with(
-        "No Business Units were included in the response."
-    )
     error = exc_info.value
     assert str(error) == "No Business Units were included in the response."
     assert error.status == 200
     assert error.data == payload
+
+
+def test_activity_sends_expected_request(
+    api, network_client, throttle, cli, region, access_token, business_unit
+):
+    network_client.execute.return_value = NetworkResponse(
+        ok=True,
+        status=200,
+        data={
+            "entities": [
+                {
+                    "id": "023db814-td33-443b-ae15-3229df980cd3",
+                    "name": "Test Activity",
+                    "active": True,
+                    "defaultCode": False,
+                    "category": "OffQueueWork",
+                    "lengthInMinutes": 60,
+                    "countsAsPaidTime": True,
+                    "countsAsWorkTime": True,
+                    "countsTowardShrinkage": True,
+                    "plannedShrinkage": True,
+                    "interruptible": False,
+                    "secondaryPresences": [],
+                    "planningGroups": [],
+                    "metadata": {
+                        "modifiedBy": {
+                            "id": "9417a483-cbb4-4c4b-aabb-828f5187arc3",
+                            "selfUri": "/api/v2/users/9417a483-cbb4-4c4b-aacc-828f5187d02w",
+                        },
+                        "dateModified": "2026-09-18T10:11:57.286Z",
+                        "version": 1,
+                    },
+                    "selfUri": "/api/v2/workforcemanagement/businessunits/1f271csd-ff47-4ead-8343-323ac1751ed6/activitycodes/029db819-de33-443b-ae15-3149df980cd3",
+                }
+            ]
+        },
+    )
+
+    api.get_business_unit_activity_codes(access_token, region, business_unit)
+    throttle.wait.assert_called_once_with()
+    cli.print_info.assert_called_once_with(
+        f"Sending request for business unit - {business_unit.name} - activity codes."
+    )
+    network_client.execute.assert_called_once()
+
+    cli.print_status.assert_called_once_with(
+        f"Successfully received 1 activity codes for {business_unit.name}."
+    )
+
+    request = network_client.execute.call_args.args[0]
+    assert request.method == HTTPMETHOD.GET
+    assert (
+        request.url
+        == f"{region.api_url}/api/v2/workforcemanagement/businessunits/{business_unit.bu_id}/activitycodes"
+    )
+    assert request.headers == {
+        "Authorization": "Bearer 123456789",
+        "Content-Type": "application/json",
+    }
+
+
+@pytest.mark.parametrize("payload", [None, {}])
+def test_skip_activity_code_no_data_response(
+    api, network_client, region, access_token, payload, business_unit
+):
+    network_client.execute.return_value = NetworkResponse(
+        ok=True,
+        status=200,
+        data=payload,
+    )
+
+    with pytest.raises(NetworkResponseException) as exc_info:
+        api.get_business_unit_activity_codes(access_token, region, business_unit)
+
+    error = exc_info.value
+    assert str(error) == "No Activity Codes were included in the response."
+    assert error.status == 200
+    assert error.data == payload
+
+
+def test_skipping_activity_code_no_id(
+    api, network_client, cli, region, access_token, business_unit
+):
+    network_client.execute.return_value = NetworkResponse(
+        ok=True,
+        status=200,
+        data={
+            "entities": [
+                {
+                    "id": "",
+                    "name": "Test Activity",
+                    "active": True,
+                    "defaultCode": False,
+                    "category": "OffQueueWork",
+                    "lengthInMinutes": 60,
+                    "countsAsPaidTime": True,
+                    "countsAsWorkTime": True,
+                    "countsTowardShrinkage": True,
+                    "plannedShrinkage": True,
+                    "interruptible": False,
+                    "secondaryPresences": [],
+                    "planningGroups": [],
+                    "metadata": {
+                        "modifiedBy": {
+                            "id": "9417a483-cbb4-4c4b-aabb-828f5187arc3",
+                            "selfUri": "/api/v2/users/9417a483-cbb4-4c4b-aacc-828f5187d02w",
+                        },
+                        "dateModified": "2026-09-18T10:11:57.286Z",
+                        "version": 1,
+                    },
+                    "selfUri": "/api/v2/workforcemanagement/businessunits/1f271csd-ff47-4ead-8343-323ac1751ed6/activitycodes/029db819-de33-443b-ae15-3149df980cd3",
+                }
+            ]
+        },
+    )
+    result = api.get_business_unit_activity_codes(access_token, region, business_unit)
+
+    cli.print_warn.assert_has_calls(
+        [
+            call(
+                f"{business_unit.name} Skipping Activity Code - Test Activity does not have an ID."
+            ),
+            call(f"{business_unit.name} - does not have any active activity codes."),
+        ]
+    )
+    assert cli.print_warn.call_count == 2
+    assert result == replace(
+        business_unit,
+        activity_codes=tuple([]),
+    )
+
+
+def test_activity_code_default_renamed_to_category(
+    api, network_client, cli, region, access_token, business_unit
+):
+    network_client.execute.return_value = NetworkResponse(
+        ok=True,
+        status=200,
+        data={
+            "entities": [
+                {
+                    "id": "12345",
+                    "name": "",
+                    "active": True,
+                    "defaultCode": True,
+                    "category": "OffQueueWork",
+                    "lengthInMinutes": 60,
+                    "countsAsPaidTime": True,
+                    "countsAsWorkTime": True,
+                    "countsTowardShrinkage": True,
+                    "plannedShrinkage": True,
+                    "interruptible": False,
+                    "secondaryPresences": [],
+                    "planningGroups": [],
+                    "metadata": {
+                        "modifiedBy": {
+                            "id": "9417a483-cbb4-4c4b-aabb-828f5187arc3",
+                            "selfUri": "/api/v2/users/9417a483-cbb4-4c4b-aacc-828f5187d02w",
+                        },
+                        "dateModified": "2026-09-18T10:11:57.286Z",
+                        "version": 1,
+                    },
+                    "selfUri": "/api/v2/workforcemanagement/businessunits/1f271csd-ff47-4ead-8343-323ac1751ed6/activitycodes/029db819-de33-443b-ae15-3149df980cd3",
+                }
+            ]
+        },
+    )
+    result = api.get_business_unit_activity_codes(access_token, region, business_unit)
+    assert result == replace(
+        business_unit,
+        activity_codes=tuple(
+            [
+                ActivityCode(
+                    "12345",
+                    "OffQueueWork",
+                    True,
+                    "OffQueueWork",
+                    default_name_changed=True,
+                )
+            ]
+        ),
+    )
+
+
+def test_activity_code_inactive(
+    api, network_client, cli, region, access_token, business_unit
+):
+    network_client.execute.return_value = NetworkResponse(
+        ok=True,
+        status=200,
+        data={
+            "entities": [
+                {
+                    "id": "12345",
+                    "name": "",
+                    "active": False,
+                    "defaultCode": True,
+                    "category": "OffQueueWork",
+                    "lengthInMinutes": 60,
+                    "countsAsPaidTime": True,
+                    "countsAsWorkTime": True,
+                    "countsTowardShrinkage": True,
+                    "plannedShrinkage": True,
+                    "interruptible": False,
+                    "secondaryPresences": [],
+                    "planningGroups": [],
+                    "metadata": {
+                        "modifiedBy": {
+                            "id": "9417a483-cbb4-4c4b-aabb-828f5187arc3",
+                            "selfUri": "/api/v2/users/9417a483-cbb4-4c4b-aacc-828f5187d02w",
+                        },
+                        "dateModified": "2026-09-18T10:11:57.286Z",
+                        "version": 1,
+                    },
+                    "selfUri": "/api/v2/workforcemanagement/businessunits/1f271csd-ff47-4ead-8343-323ac1751ed6/activitycodes/029db819-de33-443b-ae15-3149df980cd3",
+                }
+            ]
+        },
+    )
+    result = api.get_business_unit_activity_codes(access_token, region, business_unit)
+    cli.print_warn.assert_called_once_with(
+        f"{business_unit.name} - does not have any active activity codes."
+    )
+    assert result == replace(
+        business_unit,
+        activity_codes=tuple([]),
+    )
+
+
+def test_activity_code_expected(
+    api, network_client, cli, region, access_token, business_unit
+):
+    network_client.execute.return_value = NetworkResponse(
+        ok=True,
+        status=200,
+        data={
+            "entities": [
+                {
+                    "id": "12345",
+                    "name": "",
+                    "active": True,
+                    "defaultCode": True,
+                    "category": "OffQueueWork",
+                    "lengthInMinutes": 60,
+                    "countsAsPaidTime": True,
+                    "countsAsWorkTime": True,
+                    "countsTowardShrinkage": True,
+                    "plannedShrinkage": True,
+                    "interruptible": False,
+                    "secondaryPresences": [],
+                    "planningGroups": [],
+                    "metadata": {
+                        "modifiedBy": {
+                            "id": "9417a483-cbb4-4c4b-aabb-828f5187arc3",
+                            "selfUri": "/api/v2/users/9417a483-cbb4-4c4b-aacc-828f5187d02w",
+                        },
+                        "dateModified": "2026-09-18T10:11:57.286Z",
+                        "version": 1,
+                    },
+                    "selfUri": "/api/v2/workforcemanagement/businessunits/1f271csd-ff47-4ead-8343-323ac1751ed6/activitycodes/029db819-de33-443b-ae15-3149df980cd3",
+                },
+                {
+                    "id": "312345",
+                    "name": "Test Activity",
+                    "active": True,
+                    "defaultCode": False,
+                    "category": "OnQueueWork",
+                    "lengthInMinutes": 60,
+                    "countsAsPaidTime": True,
+                    "countsAsWorkTime": True,
+                    "countsTowardShrinkage": True,
+                    "plannedShrinkage": True,
+                    "interruptible": False,
+                    "secondaryPresences": [],
+                    "planningGroups": [],
+                    "metadata": {
+                        "modifiedBy": {
+                            "id": "9417a483-cbb4-4c4b-aabb-828f5187arc3",
+                            "selfUri": "/api/v2/users/9417a483-cbb4-4c4b-aacc-828f5187d02w",
+                        },
+                        "dateModified": "2026-09-18T10:11:57.286Z",
+                        "version": 1,
+                    },
+                    "selfUri": "/api/v2/workforcemanagement/businessunits/1f271csd-ff47-4ead-8343-323ac1751ed6/activitycodes/029db819-de33-443b-ae15-3149df980cd3",
+                },
+            ]
+        },
+    )
+    result = api.get_business_unit_activity_codes(access_token, region, business_unit)
+    assert result == replace(
+        business_unit,
+        activity_codes=tuple(
+            [
+                ActivityCode(
+                    "12345",
+                    "OffQueueWork",
+                    True,
+                    "OffQueueWork",
+                    default_name_changed=True,
+                ),
+                ActivityCode(
+                    "312345",
+                    "Test Activity",
+                    False,
+                    "OnQueueWork",
+                    default_name_changed=False,
+                ),
+            ]
+        ),
+    )

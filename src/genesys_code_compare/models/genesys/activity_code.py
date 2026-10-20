@@ -7,3 +7,4 @@ class ActivityCode:
     name: str
     default_code: bool
     category: str
+    default_name_changed: bool
