@@ -35,7 +35,9 @@ class Prompts:
             if client_secret is None:
                 raise KeyboardInterrupt
 
-        return ClientCredentials(client_id=client_id, client_secret=client_secret)
+        return ClientCredentials(
+            client_id=client_id.strip(), client_secret=client_secret.strip()
+        )
 
     def prompt_user_for_region(self, config: list[Region]):
         region_list = [region.name for region in config]
@@ -52,6 +54,13 @@ class Prompts:
 
     def prompt_user_for_bus(self, full_bus: list[BusinessUnit]):
         bu_list = [bu.name for bu in full_bus]
-        selected_list = self.cli.checkbox("Select BUs:", bu_list)
-        print(selected_list)
+        selected_list = []
+        while not selected_list:
+            if selected_list is None:
+                raise KeyboardInterrupt
+            selected_list = self.cli.checkbox("Select BUs:", bu_list)
+            if not selected_list:
+                self.cli.print_warn(
+                    "Please <space> to select and then <enter>. If you want to exit, press ctrl+c."
+                )
         return selected_list
