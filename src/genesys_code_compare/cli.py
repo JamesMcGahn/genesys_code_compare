@@ -1,4 +1,5 @@
 import questionary
+from questionary import Choice
 
 
 class CLI:
@@ -15,7 +16,7 @@ class CLI:
     def print_status(self, message: str) -> None:
         questionary.print(message, style="bold fg:cyan")
 
-    def select(self, question: str, choices: list[str]) -> str:
+    def select(self, question: str, choices: list[Choice]) -> Choice:
         question = questionary.select(question, choices)
         return question.ask()
 
@@ -27,6 +28,6 @@ class CLI:
         question = questionary.password(question)
         return question.ask()
 
-    def checkbox(self, question: str, choices: list[str]):
+    def checkbox(self, question: str, choices: list[Choice]) -> Choice:
         question = questionary.checkbox(question, choices=choices)
         return question.ask()

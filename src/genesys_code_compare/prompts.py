@@ -2,6 +2,7 @@ from .cli import CLI
 from .enums import RUN_MENU
 from .models.genesys import ClientCredentials, BusinessUnit
 from .models.config import Region
+from questionary import Choice
 
 
 class Prompts:
@@ -12,8 +13,11 @@ class Prompts:
         self.cli.print_info("\nWelcome to the Genesys Activity Code Comparison")
         self.cli.print_info("-----------------------------------------------")
 
-    def welcome_menu(self) -> None:
-        return self.cli.select("Select : ", [RUN_MENU.START, RUN_MENU.QUIT])
+    def welcome_menu(self) -> RUN_MENU:
+        choice = self.cli.select("Select : ", [RUN_MENU.START, RUN_MENU.QUIT])
+        if choice is None:
+            raise KeyboardInterrupt
+        return RUN_MENU(choice)
 
     def enter_client_id(self) -> str:
         return self.cli.text_input("Enter the Client ID: ")
@@ -39,10 +43,11 @@ class Prompts:
             client_id=client_id.strip(), client_secret=client_secret.strip()
         )
 
-    def prompt_user_for_region(self, config: list[Region]):
-        region_list = [region.name for region in config]
+    def prompt_user_for_region(self, config: list[Region]) -> Region:
+        region_list = [
+            Choice(title=region.name, value=region.name) for region in config
+        ]
         region_name = self.cli.select("Select region: ", region_list)
-
         if region_name is None:
             raise KeyboardInterrupt
 
@@ -52,15 +57,18 @@ class Prompts:
 
         raise RuntimeError(f"Selected region was not found: {region_name}")
 
-    def prompt_user_for_bus(self, full_bus: list[BusinessUnit]):
-        bu_list = [bu.name for bu in full_bus]
-        selected_list = []
-        while not selected_list:
-            if selected_list is None:
+    def prompt_user_for_bus(self, full_bus: list[BusinessUnit]) -> list[BusinessUnit]:
+        bu_list = [Choice(title=bu.name, value=bu.bu_id) for bu in full_bus]
+        user_selected_bus = []
+        while not user_selected_bus:
+            user_selected_bus = self.cli.checkbox("Select BUs:", bu_list)
+
+            if user_selected_bus is None:
                 raise KeyboardInterrupt
-            selected_list = self.cli.checkbox("Select BUs:", bu_list)
-            if not selected_list:
+
+            if not user_selected_bus:
                 self.cli.print_warn(
                     "Please <space> to select and then <enter>. If you want to exit, press ctrl+c."
                 )
-        return selected_list
+        selected_ids = set(user_selected_bus)
+        return [bu for bu in full_bus if bu.bu_id in selected_ids]
