@@ -4,17 +4,17 @@ from typing import TYPE_CHECKING, Any
 from dataclasses import replace
 
 if TYPE_CHECKING:
-    from .network.network_client import NetworkClient
-    from .network.network_throttle import NetworkThrottle
-    from .cli import CLI
+    from ..network.network_client import NetworkClient
+    from ..network.network_throttle import NetworkThrottle
+    from ..cli import CLI
 import base64
-from .network.base_api import BaseApi
-from .enums import HTTPMETHOD
-from .models.network import NetworkRequest, NetworkResponse, AccessToken
-from .models.genesys import ClientCredentials, BusinessUnit, ActivityCode
-from .models.config import Region
+from ..network.base_api import BaseApi
+from ..enums import HTTPMETHOD
+from ..models.network import NetworkRequest, NetworkResponse, AccessToken
+from ..models.genesys import ClientCredentials, BusinessUnit, ActivityCode, Region
+
 import time
-from .errors.network import NotAuthenticatedException, NetworkResponseException
+from ..errors.network import NotAuthenticatedException, NetworkResponseException
 
 
 class GenesysAPI(BaseApi):
@@ -107,7 +107,6 @@ class GenesysAPI(BaseApi):
         )
         response = self._execute(request)
         self._handle_response(response)
-        print(response)
         activity_codes = self._parse_activity_codes(response, business_unit)
 
         return replace(business_unit, activity_codes=tuple(activity_codes))
@@ -185,8 +184,8 @@ class GenesysAPI(BaseApi):
             bu_list.append(BusinessUnit(bu_id=n_bu_id, name=n_bu_name))
 
         if not bu_list:
-            error_message = "No Business Units were including in the response."
+            error_message = "No Business Units were included in the response."
             self.cli.print_error(error_message)
-            raise NetworkResponseException(message, response.status, payload)
+            raise NetworkResponseException(error_message, response.status, payload)
         self.cli.print_status(f"Successfully received {len(bu_list)} business units.")
         return bu_list
