@@ -222,3 +222,6 @@ __marimo__/
 
 .DS_Store
 !.trunk
+
+/reports
+/example_payloads
