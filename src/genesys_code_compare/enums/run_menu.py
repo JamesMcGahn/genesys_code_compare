@@ -2,5 +2,5 @@ from enum import StrEnum
 
 
 class RUN_MENU(StrEnum):
-    START = "START"
+    COMPARE_ACTIVITY_CODES = "COMPARE ACTIVITY CODES"
     QUIT = "QUIT"

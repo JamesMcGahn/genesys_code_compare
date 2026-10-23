@@ -1,7 +1,6 @@
 from .cli import CLI
 from .enums import RUN_MENU
-from .models.genesys import ClientCredentials, BusinessUnit
-from .models.config import Region
+from .models.genesys import ClientCredentials, BusinessUnit, Region
 from questionary import Choice
 
 
@@ -10,11 +9,13 @@ class Prompts:
         self.cli = cli
 
     def welcome_message(self) -> None:
-        self.cli.print_info("\nWelcome to the Genesys Activity Code Comparison")
-        self.cli.print_info("-----------------------------------------------")
+        self.cli.print_color(
+            "\nWelcome to the Genesys Activity Code Comparison", "green"
+        )
+        self.cli.print_color("-----------------------------------------------", "green")
 
     def welcome_menu(self) -> RUN_MENU:
-        choice = self.cli.select("Select : ", [RUN_MENU.START, RUN_MENU.QUIT])
+        choice = self.cli.select("Select : ", [code.value for code in RUN_MENU])
         if choice is None:
             raise KeyboardInterrupt
         return RUN_MENU(choice)
@@ -33,15 +34,15 @@ class Prompts:
             client_id = self.enter_client_id()
             if client_id is None:
                 raise KeyboardInterrupt
+            client_id = client_id.strip()
 
         while not client_secret:
             client_secret = self.enter_client_secret()
             if client_secret is None:
                 raise KeyboardInterrupt
+            client_secret = client_secret.strip()
 
-        return ClientCredentials(
-            client_id=client_id.strip(), client_secret=client_secret.strip()
-        )
+        return ClientCredentials(client_id=client_id, client_secret=client_secret)
 
     def prompt_user_for_region(self, config: list[Region]) -> Region:
         region_list = [
@@ -58,7 +59,10 @@ class Prompts:
         raise RuntimeError(f"Selected region was not found: {region_name}")
 
     def prompt_user_for_bus(self, full_bus: list[BusinessUnit]) -> list[BusinessUnit]:
-        bu_list = [Choice(title=bu.name, value=bu.bu_id) for bu in full_bus]
+        bu_list = sorted(
+            [Choice(title=bu.name, value=bu.bu_id) for bu in full_bus],
+            key=lambda b: b.title,
+        )
         user_selected_bus = []
         while not user_selected_bus:
             user_selected_bus = self.cli.checkbox("Select BUs:", bu_list)
