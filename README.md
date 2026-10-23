@@ -138,39 +138,43 @@ Python and dependencies are included in the output; recipients do not need Pytho
 or uv. Keep `launcher.py` as the PyInstaller entry point. Builds target the
 architecture of the Python interpreter used to build them.
 
-Both builds include the packaged default config and a copy of the root
-`config.toml` beside the executable. Rebuilding replaces release files; save any
+Both builds include the packaged default config. The macOS build also copies the
+root `config.toml` beside its executable inside the app. Rebuilding replaces release files; save any
 custom configuration and reports elsewhere first. These commands produce
 unsigned releases and do not perform macOS notarization.
 
 ### Windows (PowerShell)
 
 ```powershell
-uv run --group dev pyinstaller --noconfirm --clean --onedir --console `
+uv run --group dev pyinstaller --noconfirm --clean --onefile --console `
   --name GenesysCodeCompare `
   --icon "assets/app.ico" `
   --paths src `
   --add-data "src/genesys_code_compare/default_config.toml:genesys_code_compare" `
+  --add-data "LICENSE:." `
   --distpath dist/windows `
   --workpath build/windows `
   launcher.py
 
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller build failed" }
-Copy-Item config.toml dist/windows/GenesysCodeCompare/config.toml
-Copy-Item LICENSE dist/windows/GenesysCodeCompare/LICENSE
-Compress-Archive -Path dist/windows/GenesysCodeCompare `
-  -DestinationPath dist/GenesysCodeCompare-windows.zip -Force
 ```
 
-Send `dist/GenesysCodeCompare-windows.zip`. Users must extract the entire folder,
-including `_internal`, then run this from PowerShell inside that folder:
+Send only `dist/windows/GenesysCodeCompare.exe`. Python, DLLs, dependencies,
+the default configuration, and the license are embedded in this single file.
+Users can double-click it or run it from PowerShell:
 
 ```powershell
 .\GenesysCodeCompare.exe
 ```
 
-The executable uses `assets/app.ico`. Users can edit `config.toml` and find
-`reports/` beside the executable.
+The executable uses `assets/app.ico` and the bundled `default_config.toml`;
+no separate configuration file is required. To change the embedded configuration,
+edit `src/genesys_code_compare/default_config.toml` before building. An optional
+`config.toml` beside the executable overrides the embedded defaults.
+
+PyInstaller extracts its bundled runtime to a temporary directory when launched;
+users do not need to manage those files. Generated Excel reports are saved in
+`reports/` beside the executable, so run it from a writable folder.
 
 ### macOS (Terminal)
 
