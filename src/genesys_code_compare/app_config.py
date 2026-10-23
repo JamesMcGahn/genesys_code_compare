@@ -3,12 +3,17 @@ import sys
 import tomllib
 from .cli import CLI
 from .errors import ConfigError
-from .models.config import Region
+from .models.genesys import Region
 
 
 class AppConfig:
     def __init__(self, cli: CLI):
         self.cli = cli
+        self._region_list: Region | None = None
+
+    @property
+    def region_list(self) -> list[Region]:
+        return self._region_list
 
     def get_default_config(
         self,
@@ -24,12 +29,18 @@ class AppConfig:
 
         external_config = external_dir / "config.toml"
 
-        path = (
-            external_config if external_config.exists() else self.get_default_config()
-        )
+        path = None
+        if external_config.exists():
+            path = external_config
+            self.cli.print_status(f"Loading config from external file: {path}")
+
+        else:
+            self.cli.print_status("Loading Config from default config.")
+            path = self.get_default_config()
+
         return path
 
-    def load_config(self, config_path: Path | None = None) -> list[Region]:
+    def load_config(self, config_path: Path | None = None) -> None:
         if config_path is None:
             config_path = self.get_config_path()
         elif not config_path.is_file():
@@ -65,4 +76,5 @@ class AppConfig:
             if not region_list:
                 msg = "Failed to load config file. No Region exist."
                 raise ConfigError(msg)
-            return region_list
+            self.cli.print_status("Config succesfully loaded.")
+            self._region_list = region_list
