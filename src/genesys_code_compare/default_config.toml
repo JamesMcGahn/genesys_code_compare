@@ -1,11 +1,94 @@
+# Core deployment regions (satellite media regions are excluded).
+# https://help.genesys.cloud/articles/aws-regions-for-genesys-cloud-deployment/
+# https://help.genesys.cloud/articles/required-genesys-cloud-domains/
+# login_url is the OAuth token endpoint; api_url is the base URL without a trailing slash.
+
+# Northern Virginia, United States.
 [regions.us-east-1]
 login_url = "https://login.mypurecloud.com/oauth/token"
 api_url = "https://api.mypurecloud.com"
 
+# Ohio, United States; FedRAMP / U.S. Public Sector.
+[regions.us-east-2]
+login_url = "https://login.use2.us-gov-pure.cloud/oauth/token"
+api_url = "https://api.use2.us-gov-pure.cloud"
+
+# Oregon, United States.
 [regions.us-west-2]
 login_url = "https://login.usw2.pure.cloud/oauth/token"
 api_url = "https://api.usw2.pure.cloud"
 
+# Canada (Central).
+[regions.ca-central-1]
+login_url = "https://login.cac1.pure.cloud/oauth/token"
+api_url = "https://api.cac1.pure.cloud"
+
+# Frankfurt, Germany.
+[regions.eu-central-1]
+login_url = "https://login.mypurecloud.de/oauth/token"
+api_url = "https://api.mypurecloud.de"
+
+# Zurich, Switzerland.
+[regions.eu-central-2]
+login_url = "https://login.euc2.pure.cloud/oauth/token"
+api_url = "https://api.euc2.pure.cloud"
+
+# Dublin, Ireland.
 [regions.eu-west-1]
 login_url = "https://login.mypurecloud.ie/oauth/token"
 api_url = "https://api.mypurecloud.ie"
+
+# London, United Kingdom.
+[regions.eu-west-2]
+login_url = "https://login.euw2.pure.cloud/oauth/token"
+api_url = "https://api.euw2.pure.cloud"
+
+# Sydney, Australia.
+[regions.ap-southeast-2]
+login_url = "https://login.mypurecloud.com.au/oauth/token"
+api_url = "https://api.mypurecloud.com.au"
+
+# São Paulo, Brazil.
+[regions.sa-east-1]
+login_url = "https://login.sae1.pure.cloud/oauth/token"
+api_url = "https://api.sae1.pure.cloud"
+
+# Mexico (Central).
+[regions.mx-central-1]
+login_url = "https://login.mxc1.pure.cloud/oauth/token"
+api_url = "https://api.mxc1.pure.cloud"
+
+# Brandenburg, Germany; European Sovereign Region; limited availability.
+[regions.eusc-de-east-1]
+login_url = "https://login.edee1.eusc-pure.cloud/oauth/token"
+api_url = "https://api.edee1.eusc-pure.cloud"
+
+# United Arab Emirates (UAE).
+[regions.me-central-1]
+login_url = "https://login.mec1.pure.cloud/oauth/token"
+api_url = "https://api.mec1.pure.cloud"
+
+# Mumbai, India.
+[regions.ap-south-1]
+login_url = "https://login.aps1.pure.cloud/oauth/token"
+api_url = "https://api.aps1.pure.cloud"
+
+# Tokyo, Japan.
+[regions.ap-northeast-1]
+login_url = "https://login.mypurecloud.jp/oauth/token"
+api_url = "https://api.mypurecloud.jp"
+
+# Seoul, South Korea.
+[regions.ap-northeast-2]
+login_url = "https://login.apne2.pure.cloud/oauth/token"
+api_url = "https://api.apne2.pure.cloud"
+
+# Osaka, Japan.
+[regions.ap-northeast-3]
+login_url = "https://login.apne3.pure.cloud/oauth/token"
+api_url = "https://api.apne3.pure.cloud"
+
+# Singapore.
+[regions.ap-southeast-1]
+login_url = "https://login.apse1.pure.cloud/oauth/token"
+api_url = "https://api.apse1.pure.cloud"
