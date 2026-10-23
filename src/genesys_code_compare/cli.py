@@ -16,6 +16,9 @@ class CLI:
     def print_status(self, message: str) -> None:
         questionary.print(message, style="bold fg:cyan")
 
+    def print_color(self, message: str, color: str) -> None:
+        questionary.print(message, style=f"bold fg:{color}")
+
     def select(self, question: str, choices: list[Choice]) -> Choice:
         question = questionary.select(question, choices)
         return question.ask()
