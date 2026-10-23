@@ -1,7 +1,7 @@
 from pathlib import Path
 import pytest
 from genesys_code_compare.errors import ConfigError
-from genesys_code_compare.models.config import Region
+from genesys_code_compare.models.genesys import Region
 import tomllib
 from unittest.mock import Mock
 
@@ -55,7 +55,8 @@ login_url = "https://login.mypurecloud.com"
 api_url = "https://api.mypurecloud.com"
 """)
 
-    result = app_config.load_config(config_file)
+    app_config.load_config(config_file)
+    result = app_config.region_list
     assert result == [
         Region(
             name="us_east",
@@ -63,14 +64,6 @@ api_url = "https://api.mypurecloud.com"
             api_url="https://api.mypurecloud.com",
         )
     ]
-
-
-def test_load_with_no_regions(tmp_path, app_config):
-    config_file = tmp_path / "config.toml"
-    config_file.write_text("""""")
-
-    with pytest.raises(ConfigError, match="Config file doesn't have any regions"):
-        app_config.load_config(config_file)
 
 
 def test_load_with_no_regions(tmp_path, app_config):

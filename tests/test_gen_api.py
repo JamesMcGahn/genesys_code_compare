@@ -7,12 +7,12 @@ from genesys_code_compare.errors.network import (
     NotAuthenticatedException,
     NetworkResponseException,
 )
-from genesys_code_compare.genesys_api import GenesysAPI
-from genesys_code_compare.models.config import Region
+from genesys_code_compare.genesys import GenesysAPI
 from genesys_code_compare.models.genesys import (
     ClientCredentials,
     BusinessUnit,
     ActivityCode,
+    Region,
 )
 from genesys_code_compare.models.network import NetworkResponse, AccessToken
 from genesys_code_compare.network import NetworkClient, NetworkThrottle
@@ -80,7 +80,7 @@ def test_authenticate_returns_token(
     )
 
     monkeypatch.setattr(
-        "genesys_code_compare.genesys_api.time.monotonic",
+        "genesys_code_compare.genesys.genesys_api.time.monotonic",
         lambda: 1000.0,
     )
 
@@ -137,16 +137,33 @@ def test_authenticate_rejects_invalid_credentials(
 
     with pytest.raises(NotAuthenticatedException) as exc_info:
         api.authenticate(credentials, region)
-        cli.print_error.assert_called_once_with(
-            "Received response. Access token not in payload."
-        )
-        assert exc_info.message == "invalid_client: authentication failed"
-        assert exc_info.status == 400
-        assert exc_info.data == {
-            "error": "invalid_client",
-            "description": "authentication failed",
-            "error_description": "authentication failed",
-        }
+
+    e = exc_info.value
+    assert str(e) == "invalid_client: authentication failed"
+    assert e.status == 400
+    assert e.data == {
+        "error": "invalid_client",
+        "description": "authentication failed",
+        "error_description": "authentication failed",
+    }
+
+
+def test_authenticate_response_missing_token(
+    api, network_client, credentials, region, cli
+):
+    network_client.execute.return_value = NetworkResponse(
+        ok=True,
+        status=200,
+        data={},
+    )
+
+    with pytest.raises(NotAuthenticatedException) as exc_info:
+        api.authenticate(credentials, region)
+
+    e = exc_info.value
+    assert str(e) == "access token not in payload."
+    assert e.status == 200
+    assert e.data == {}
 
 
 def test_bad_request_no_payload(api, network_client, credentials, region, cli):
@@ -159,12 +176,14 @@ def test_bad_request_no_payload(api, network_client, credentials, region, cli):
     with pytest.raises(NetworkResponseException) as exc_info:
 
         api.authenticate(credentials, region)
-        assert (
-            exc_info.message
-            == "NetworkResponseException: received a failed response from server."
-        )
-        assert exc_info.status == 400
-        assert exc_info.data is None
+
+    error = exc_info.value
+    assert (
+        str(error)
+        == "NetworkResponseException: received a failed response from server."
+    )
+    assert error.status == 400
+    assert error.data is None
 
 
 def test_unathenticated_call(api, network_client, credentials, region):
@@ -347,7 +366,49 @@ def test_skip_bu_no_id_response(
     assert result == [BusinessUnit("1f271csd-ff47-4ead-8343-323ac1751ed6", "Test BU")]
 
 
-@pytest.mark.parametrize("payload", [None, {}])
+def test_skip_bu_all_no_id_response(
+    api, network_client, throttle, cli, region, access_token
+):
+    payload = (
+        {
+            "entities": [
+                {
+                    "id": "",
+                    "name": "Test BU",
+                    "authorized": False,
+                    "division": {
+                        "id": "0c1a7c06-45ar-441e-a3d5-94add1fa9658",
+                        "selfUri": "/api/v2/authorization/divisions/0c1a7c06-45ar-441e-a3d5-94add1fa9658",
+                    },
+                    "selfUri": "/api/v2/workforcemanagement/businessunits/1f271csd-ff47-4ead-8343-323ac1751ed6",
+                },
+                {
+                    "id": "",
+                    "name": "Test BU 2",
+                    "authorized": False,
+                    "division": {
+                        "id": "0c1a7c06-45ar-441e-a3d5-94add1fa9658",
+                        "selfUri": "/api/v2/authorization/divisions/0c1a7c06-45ar-441e-a3d5-94add1fa9658",
+                    },
+                    "selfUri": "/api/v2/workforcemanagement/businessunits/1f271csd-aa47-4ead-8343-323ac1751ed6",
+                },
+            ]
+        },
+    )
+    network_client.execute.return_value = NetworkResponse(
+        ok=True, status=200, data=payload
+    )
+
+    with pytest.raises(NetworkResponseException) as exc_info:
+        api.get_business_units(access_token, region)
+
+    error = exc_info.value
+    assert str(error) == "No Business Units were included in the response."
+    assert error.status == 200
+    assert error.data == payload
+
+
+@pytest.mark.parametrize("payload", [None, {}, {"entities": []}])
 def test_skip_bu_no_data_response(api, network_client, region, access_token, payload):
     network_client.execute.return_value = NetworkResponse(
         ok=True,
@@ -488,6 +549,24 @@ def test_skipping_activity_code_no_id(
         ]
     )
     assert cli.print_warn.call_count == 2
+    assert result == replace(
+        business_unit,
+        activity_codes=tuple([]),
+    )
+
+
+def test_response_no_activity_code(
+    api, network_client, cli, region, access_token, business_unit
+):
+    network_client.execute.return_value = NetworkResponse(
+        ok=True, status=200, data={"entities": []}
+    )
+    result = api.get_business_unit_activity_codes(access_token, region, business_unit)
+
+    cli.print_warn.assert_called_with(
+        f"{business_unit.name} - does not have any active activity codes."
+    )
+
     assert result == replace(
         business_unit,
         activity_codes=tuple([]),
