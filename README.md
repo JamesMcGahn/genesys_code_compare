@@ -44,7 +44,7 @@ reports/report_YYYYMMDD-HHMMSS.xlsx
 
 When running as a frozen executable, the `reports` folder is created beside the executable instead.
 
-Each workbook contains five sheets:
+Each workbook contains six sheets:
 
 | Sheet                 | Contents                                                                                                  |
 | --------------------- | --------------------------------------------------------------------------------------------------------- |
@@ -53,12 +53,15 @@ Each workbook contains five sheets:
 | **Field Differences** | Codes with the same name in every selected business unit, but different categories or default-code flags. |
 | **Partial Matches**   | Codes present in more than one, but fewer than all, selected business units.                              |
 | **Unique Codes**      | Codes present in only one selected business unit when multiple units are selected.                        |
+| **Inactive Codes** | All inactive codes with an ID, including duplicate names. Excluded from comparison. |
 
 Detail sheets include **Code**, **Business Unit**, **Category**, **Default Code**, **Default Name Changed**, and **ID**. All sheets have bold headers, a frozen header row, and autofilters.
 
+Every sheet also includes a **Trailing Spaces** column showing the number of spaces at the end of the code name (`0` means none). Filter this column for values greater than zero to find names such as `Bereavement ` that look identical to another code. Original names and exact matching are preserved.
+
 ### Matching rules
 
-- Only active activity codes with an ID are included.
+- Only active activity codes with an ID are compared. Inactive codes with an ID appear separately in **Inactive Codes**.
 - Matching uses exact, case-sensitive names; names are not trimmed or normalized.
 - When an activity code has no name, its category is used as its display and comparison name.
 - Only name, category, and the default-code flag determine an exact field match. IDs and the `Default Name Changed` field are exported but do not affect matching.
@@ -66,7 +69,7 @@ Detail sheets include **Code**, **Business Unit**, **Category**, **Default Code*
 - Codes that occur in only a subset of selected units remain partial or unique matches, even if their fields differ.
 - With one business unit selected, every included code is an exact match.
 
-The analyzer keys business units and codes by name. Duplicate business-unit names, or duplicate code names within a unit, can overwrite one another during analysis. The API client also reads the returned `entities` array without following pagination links.
+The analyzer keys business units and codes by name. Duplicate business-unit names, or duplicate active code names within a unit, can overwrite one another during analysis. The API client also reads the returned `entities` array without following pagination links.
 
 ## Region configuration
 

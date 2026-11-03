@@ -28,6 +28,7 @@ class AnalyzeSheetService(SheetService):
             ),
             self._build_detail_sheet("Partial Matches", match_result.partial_matches),
             self._build_detail_sheet("Unique Codes", match_result.unique),
+            self._build_inactive_sheet(business_units),
         ]
 
         return self.write(output_path, sheets)
@@ -40,6 +41,7 @@ class AnalyzeSheetService(SheetService):
             "Default Code",
             "Default Name Changed",
             "ID",
+            "Trailing Spaces",
         ]
 
         row_data = [
@@ -50,6 +52,7 @@ class AnalyzeSheetService(SheetService):
                 code.default_code,
                 code.default_name_changed,
                 code.ac_id,
+                self._trailing_spaces(record.name),
             ]
             for record in sorted(
                 records,
@@ -80,8 +83,47 @@ class AnalyzeSheetService(SheetService):
             [
                 record.name,
                 *["X" if bu_name in record.present_in else "O" for bu_name in bu_names],
+                self._trailing_spaces(record.name),
             ]
             for record in records
         ]
 
-        return SheetData(name="Summary", headers=["Code", *bu_names], rows=data_rows)
+        return SheetData(
+            name="Summary", headers=["Code", *bu_names, "Trailing Spaces"], rows=data_rows
+        )
+
+    @staticmethod
+    def _trailing_spaces(name: str) -> int:
+        return len(name) - len(name.rstrip(" "))
+
+    def _build_inactive_sheet(self, business_units: list[BusinessUnit]) -> SheetData:
+        rows = [
+            [
+                code.name,
+                bu.name,
+                code.category,
+                code.default_code,
+                code.default_name_changed,
+                code.ac_id,
+                self._trailing_spaces(code.name),
+            ]
+            for bu in business_units
+            for code in bu.activity_codes
+            if not code.is_active
+        ]
+
+        rows.sort(key=lambda row: (row[0], row[1], row[5]))
+
+        return SheetData(
+            name="Inactive Codes",
+            headers=[
+                "Code",
+                "Business Unit",
+                "Category",
+                "Default Code",
+                "Default Name Changed",
+                "ID",
+                "Trailing Spaces",
+            ],
+            rows=rows,
+        )

@@ -619,6 +619,7 @@ def test_activity_code_default_renamed_to_category(
                     True,
                     "OffQueueWork",
                     default_name_changed=True,
+                    is_active=True,
                 )
             ]
         ),
@@ -666,7 +667,12 @@ def test_activity_code_inactive(
     )
     assert result == replace(
         business_unit,
-        activity_codes=tuple([]),
+        activity_codes=(
+            ActivityCode(
+                "12345", "OffQueueWork", True, "OffQueueWork",
+                default_name_changed=True, is_active=False,
+            ),
+        ),
     )
 
 
@@ -740,6 +746,7 @@ def test_activity_code_expected(
                     True,
                     "OffQueueWork",
                     default_name_changed=True,
+                    is_active=True,
                 ),
                 ActivityCode(
                     "312345",
@@ -747,6 +754,7 @@ def test_activity_code_expected(
                     False,
                     "OnQueueWork",
                     default_name_changed=False,
+                    is_active=True,
                 ),
             ]
         ),

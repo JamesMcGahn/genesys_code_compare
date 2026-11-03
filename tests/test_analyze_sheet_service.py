@@ -1,6 +1,8 @@
 import pytest
+from dataclasses import replace
 from openpyxl import load_workbook
 
+from genesys_code_compare.analyze import ActivityCodeAnalyze
 from genesys_code_compare.cli import CLI
 from genesys_code_compare.file.analyze_sheet_service import AnalyzeSheetService
 from genesys_code_compare.models.analyze import CodePresence, MatchResult
@@ -33,6 +35,7 @@ def make_presence(name, sources, categories=None):
                 default_code=True,
                 category=categories.get(source, "Break"),
                 default_name_changed=False,
+                is_active=True,
             )
             for source in sources
         },
@@ -62,7 +65,7 @@ def match_result():
 def test_summary_headers_follow_business_unit_order(service, business_units):
     sheet = service._build_summary(business_units, MatchResult())
 
-    assert sheet.headers == ["Code", "BU B", "BU A", "BU C"]
+    assert sheet.headers == ["Code", "BU B", "BU A", "BU C", "Trailing Spaces"]
 
 
 @pytest.mark.parametrize(
@@ -80,7 +83,7 @@ def test_summary_presence_aligns_with_headers(
     sheet = service._build_summary(business_units, match_result)
 
     row = next(row for row in sheet.rows if row[0] == name)
-    assert row == [name, *expected]
+    assert row == [name, *expected, 0]
 
 
 def test_summary_includes_each_code_once(service, business_units, match_result):
@@ -108,18 +111,18 @@ def test_detail_headers(service):
 
     assert sheet.headers == [
         "Code", "Business Unit", "Category", "Default Code",
-        "Default Name Changed", "ID",
+        "Default Name Changed", "ID", "Trailing Spaces",
     ]
 
 
 def test_detail_preserves_activity_fields(service):
-    code = ActivityCode("id-42", "Training", False, "Meeting", True)
+    code = ActivityCode("id-42", "Training", False, "Meeting", True, is_active=True)
     record = CodePresence("Training", {"BU A": code}, ["BU B"])
 
     sheet = service._build_detail_sheet("Details", [record])
 
     assert list(sheet.rows) == [
-        ["Training", "BU A", "Meeting", False, True, "id-42"]
+        ["Training", "BU A", "Meeting", False, True, "id-42", 0]
     ]
 
 
@@ -155,7 +158,7 @@ def saved_workbook(service, business_units, match_result, tmp_path):
 def test_write_creates_all_category_tabs(saved_workbook):
     assert saved_workbook.sheetnames == [
         "Summary", "Exact Matches", "Field Differences",
-        "Partial Matches", "Unique Codes",
+        "Partial Matches", "Unique Codes", "Inactive Codes",
     ]
 
 
@@ -181,3 +184,61 @@ def test_write_returns_output_path(service, business_units, tmp_path):
     result = service.write_analyze(business_units, MatchResult(), output)
 
     assert result == output
+
+
+def test_report_keeps_inactive_duplicates_separate_from_comparison(service, tmp_path):
+    active = ActivityCode("active", "Lunch", False, "Meal", False, is_active=True)
+    inactive_1 = replace(active, ac_id="inactive-1", is_active=False)
+    inactive_2 = replace(active, ac_id="inactive-2", is_active=False)
+    business_units = [
+        BusinessUnit("bu-a", "BU A", (active,)),
+        BusinessUnit("bu-b", "BU B", (inactive_1, inactive_2)),
+    ]
+    result = ActivityCodeAnalyze(CLI()).analyze(business_units)
+    output = tmp_path / "inactive.xlsx"
+
+    service.write_analyze(business_units, result, output)
+
+    workbook = load_workbook(output)
+    try:
+        assert list(workbook["Summary"].values)[1:] == [("Lunch", "X", "O", 0)]
+        assert list(workbook["Inactive Codes"].values)[1:] == [
+            ("Lunch", "BU B", "Meal", False, False, "inactive-1", 0),
+            ("Lunch", "BU B", "Meal", False, False, "inactive-2", 0),
+        ]
+        assert list(workbook["Unique Codes"].values)[1:] == [
+            ("Lunch", "BU A", "Meal", False, False, "active", 0),
+        ]
+    finally:
+        workbook.close()
+
+
+@pytest.mark.parametrize("spaces", [1, 2])
+def test_trailing_spaces_remain_distinct_in_report(service, tmp_path, spaces):
+    plain = ActivityCode("plain", "Lunch", False, "Meal", False, is_active=True)
+    spaced = replace(plain, ac_id="spaced", name="Lunch" + " " * spaces)
+    inactive = replace(spaced, ac_id="inactive", is_active=False)
+    business_units = [
+        BusinessUnit("bu-a", "BU A", (plain,)),
+        BusinessUnit("bu-b", "BU B", (spaced, inactive)),
+    ]
+    result = ActivityCodeAnalyze(CLI()).analyze(business_units)
+    output = tmp_path / "spaces.xlsx"
+
+    service.write_analyze(business_units, result, output)
+
+    workbook = load_workbook(output)
+    try:
+        assert list(workbook["Summary"].values)[1:] == [
+            (plain.name, "X", "O", 0),
+            (spaced.name, "O", "X", spaces),
+        ]
+        assert list(workbook["Unique Codes"].values)[1:] == [
+            (plain.name, "BU A", "Meal", False, False, "plain", 0),
+            (spaced.name, "BU B", "Meal", False, False, "spaced", spaces),
+        ]
+        assert list(workbook["Inactive Codes"].values)[1:] == [
+            (spaced.name, "BU B", "Meal", False, False, "inactive", spaces),
+        ]
+    finally:
+        workbook.close()

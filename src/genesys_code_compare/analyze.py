@@ -19,7 +19,7 @@ class ActivityCodeAnalyze:
     def analyze(self, business_units: list[BusinessUnit]):
         self.cli.print_info("Starting to Analyze Business Units Activity Codes.")
         data_set = {
-            bu.name: {code.name: code for code in bu.activity_codes}
+            bu.name: {code.name: code for code in bu.activity_codes if code.is_active}
             for bu in business_units
         }
 

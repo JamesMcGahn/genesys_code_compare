@@ -98,7 +98,7 @@ def test_comparison_passes_data_through_workflow(
     business_unit,
     tmp_path,
 ):
-    code = ActivityCode("123", "test", True, "test", True)
+    code = ActivityCode("123", "test", True, "test", True, is_active=True)
     match_value = MatchResult(
         exact_name_matches=[CodePresence("test", {business_unit.name: code}, [])]
     )
@@ -147,11 +147,11 @@ def test_only_selected_business_units_are_processed(
 
     populated_a = replace(
         bu_a,
-        activity_codes=(ActivityCode("code-a", "Lunch", False, "Break", False),),
+        activity_codes=(ActivityCode("code-a", "Lunch", False, "Break", False, is_active=True),),
     )
     populated_c = replace(
         bu_c,
-        activity_codes=(ActivityCode("code-c", "Lunch", False, "Break", False),),
+        activity_codes=(ActivityCode("code-c", "Lunch", False, "Break", False, is_active=True),),
     )
 
     match_result = MatchResult()
@@ -256,7 +256,7 @@ def test_selection_interupted(
 def test_bu_fails_midway(
     compare_act_codes, gen_session, api, prompts, analyze, sheet_writer, business_unit
 ):
-    code = ActivityCode("123", "test", True, "test", True)
+    code = ActivityCode("123", "test", True, "test", True, is_active=True)
     populated_bu = replace(business_unit, activity_codes=(code,))
     second_bu = BusinessUnit("second-id", "Second BU")
     prompts.prompt_user_for_bus.return_value = [business_unit, second_bu]

@@ -8,3 +8,4 @@ class ActivityCode:
     default_code: bool
     category: str
     default_name_changed: bool
+    is_active: bool

@@ -129,9 +129,6 @@ class GenesysAPI(BaseApi):
             act_name = activity.get("name", "")
             act_id = activity.get("id", None)
 
-            if not is_active:
-                continue
-
             if not act_id:
                 self.cli.print_warn(
                     f"{business_unit.name} Skipping Activity Code - {act_name} does not have an ID."
@@ -147,12 +144,13 @@ class GenesysAPI(BaseApi):
                 default_code=is_default,
                 category=category,
                 default_name_changed=default_name_changed,
+                is_active=is_active,
             )
             activity_code_list.append(ac)
         self.cli.print_status(
             f"Successfully received {len(activity_code_list)} activity codes for {business_unit.name}."
         )
-        if not activity_code_list:
+        if not any(code.is_active for code in activity_code_list):
             self.cli.print_warn(
                 f"{business_unit.name} - does not have any active activity codes."
             )

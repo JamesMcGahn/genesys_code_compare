@@ -1,4 +1,6 @@
 import pytest
+from dataclasses import replace
+from itertools import permutations
 from unittest.mock import Mock, call
 from genesys_code_compare.analyze import ActivityCodeAnalyze
 from genesys_code_compare.models.genesys import ActivityCode, BusinessUnit
@@ -15,7 +17,35 @@ def make_code(
         category=category,
         default_code=default_code,
         default_name_changed=False,
+        is_active=True,
     )
+
+
+@pytest.mark.parametrize("order", list(permutations(range(3))))
+def test_active_duplicate_matches_regardless_of_order(analyzer, order):
+    active = make_code("bu-a", "Lunch", "Meal")
+    duplicates = (
+        active,
+        replace(active, ac_id="inactive-1", category="Break", is_active=False),
+        replace(active, ac_id="inactive-2", default_code=True, is_active=False),
+    )
+    other = make_code("bu-b", "Lunch", "Meal")
+
+    result = analyzer.analyze([
+        BusinessUnit("bu-a", "BU A", tuple(duplicates[i] for i in order)),
+        BusinessUnit("bu-b", "BU B", (other,)),
+    ])
+
+    presence = CodePresence("Lunch", {"BU A": active, "BU B": other}, [])
+    assert result == MatchResult(
+        exact_name_matches=[presence], exact_field_matches=[presence]
+    )
+
+
+def test_only_inactive_codes_produce_empty_comparison(analyzer):
+    inactive = replace(make_code("bu-a", "Lunch", "Meal"), is_active=False)
+
+    assert analyzer.analyze([BusinessUnit("bu-a", "BU A", (inactive,))]) == MatchResult()
 
 
 @pytest.fixture
