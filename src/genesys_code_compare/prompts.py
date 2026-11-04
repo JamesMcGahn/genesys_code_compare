@@ -2,6 +2,7 @@ from .cli import CLI
 from .enums import RUN_MENU
 from .models.genesys import ClientCredentials, BusinessUnit, Region
 from questionary import Choice
+from .__version__ import __version__
 
 
 class Prompts:
@@ -10,7 +11,8 @@ class Prompts:
 
     def welcome_message(self) -> None:
         self.cli.print_color(
-            "\nWelcome to the Genesys Activity Code Comparison", "green"
+            f"\nWelcome to the Genesys Activity Code Comparison (v{__version__})",
+            "green",
         )
         self.cli.print_color("-----------------------------------------------", "green")
 
