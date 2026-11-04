@@ -18,6 +18,41 @@ from genesys_code_compare.models.network import NetworkResponse, AccessToken
 from genesys_code_compare.network import NetworkClient, NetworkThrottle
 from genesys_code_compare.cli import CLI
 from dataclasses import replace
+from copy import deepcopy
+
+
+def test_activity_response_preserves_full_raw_payload(
+    api, network_client, region, access_token, business_unit
+):
+    payload = {
+        "entities": [
+            {"id": "active", "name": "Bereavement ", "active": True,
+             "category": "TimeOff", "metadata": {"version": 7}},
+            {"id": "inactive", "name": "Bereavement", "active": False,
+             "category": "TimeOff"},
+            {"name": "No ID", "active": True},
+        ],
+        "extra": {"unknown_field": [1, None, False]},
+    }
+    original = deepcopy(payload)
+    network_client.execute.return_value = NetworkResponse(True, 200, payload)
+
+    result = api.get_business_unit_activity_codes(access_token, region, business_unit)
+
+    assert result.raw_payload == original
+    assert payload == original
+    assert len(result.activity_codes) == 2
+    assert result.activity_codes[0].name == "Bereavement "
+    assert business_unit.raw_payload is None
+
+
+def test_raw_payload_does_not_affect_business_unit_equality_or_repr():
+    unit = BusinessUnit("id", "NY")
+    captured = replace(unit, raw_payload={"extra": "payload-only-marker"})
+
+    assert captured == unit
+    assert "payload-only-marker" not in repr(captured)
+    assert captured.raw_payload == {"extra": "payload-only-marker"}
 
 
 @pytest.fixture

@@ -6,14 +6,13 @@ from pathlib import Path
 from openpyxl import Workbook
 from openpyxl.styles import Font
 from ..models.file import SheetData
-from .util import FileUtil
-from datetime import datetime
+from .base_write import BaseWrite
 
 
-class SheetService:
+class SheetService(BaseWrite):
 
     def __init__(self, cli: CLI):
-        self._cli = cli
+        super().__init__(cli)
 
     def write(self, output_path: str | Path, sheets: Iterable[SheetData]) -> Path:
         workbook = Workbook()
@@ -45,10 +44,3 @@ class SheetService:
         workbook.save(output_path)
         self._cli.print_status(f"Wrote file to: {output_path}")
         return output_path
-
-    def get_output_path(self, output_path: str | Path | None = None) -> Path:
-        if output_path is not None:
-            return Path(output_path)
-        now = datetime.now()
-        timestamp_str = now.strftime("%Y%m%d-%H%M%S")
-        return FileUtil.get_app_directory() / "reports" / f"report_{timestamp_str}.xlsx"

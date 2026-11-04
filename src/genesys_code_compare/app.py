@@ -19,6 +19,7 @@ from .workflows import Workflow, CompareActivityCodes, AuthFlow
 from .analyze import ActivityCodeAnalyze
 from .file import AnalyzeSheetService
 from .errors.network import NetworkResponseException, RetryableNetworkException
+from .file import RawPlayloadService
 
 
 class App:
@@ -38,6 +39,7 @@ class App:
         self.prompts = Prompts(self.cli)
         self.activity_code_analyzer = ActivityCodeAnalyze(self.cli)
         self.activity_code_reports = AnalyzeSheetService(self.cli)
+        self.raw_payload_writer = RawPlayloadService(self.cli)
 
         self._gen_token: AccessToken | None = None
         self._region: Region | None = None
@@ -62,6 +64,7 @@ class App:
                 prompts=self.prompts,
                 analyzer=self.activity_code_analyzer,
                 reports=self.activity_code_reports,
+                raw_paylod_writer=self.raw_payload_writer,
             ),
         }
 

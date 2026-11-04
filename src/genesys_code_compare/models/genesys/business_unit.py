@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from .activity_code import ActivityCode
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
@@ -13,3 +13,4 @@ class BusinessUnit:
     bu_id: str
     name: str
     activity_codes: tuple[ActivityCode] = ()
+    raw_payload: dict[str, Any] | None = field(default=None, repr=False, compare=False)

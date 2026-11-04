@@ -83,11 +83,14 @@ def test_default_output(service, tmp_path, monkeypatch):
             return fixed
 
     monkeypatch.setattr(
-        "genesys_code_compare.file.sheet_service.datetime", PatchedDatetime
+        "genesys_code_compare.file.base_write.datetime", PatchedDatetime
     )
     path = service.get_output_path(None)
 
-    assert path == tmp_path / "reports" / "report_20261022-120000.xlsx"
+    assert path == (
+        tmp_path / "reports" / "20261022-120000-000000"
+        / "report__20261022-120000-000000.xlsx"
+    )
 
 
 def test_given_path(service, tmp_path):

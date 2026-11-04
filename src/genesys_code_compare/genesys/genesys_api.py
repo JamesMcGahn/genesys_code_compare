@@ -109,7 +109,11 @@ class GenesysAPI(BaseApi):
         self._handle_response(response)
         activity_codes = self._parse_activity_codes(response, business_unit)
 
-        return replace(business_unit, activity_codes=tuple(activity_codes))
+        return replace(
+            business_unit,
+            activity_codes=tuple(activity_codes),
+            raw_payload=response.data,
+        )
 
     def _parse_activity_codes(
         self, response: NetworkResponse, business_unit: BusinessUnit

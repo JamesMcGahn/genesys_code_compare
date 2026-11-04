@@ -18,7 +18,7 @@ from genesys_code_compare.cli import CLI
 from dataclasses import replace
 from genesys_code_compare.workflows.compare_activity_codes import CompareActivityCodes
 from genesys_code_compare.analyze import ActivityCodeAnalyze
-from genesys_code_compare.file import AnalyzeSheetService
+from genesys_code_compare.file import AnalyzeSheetService, RawPlayloadService
 from genesys_code_compare.prompts import Prompts
 from genesys_code_compare.models.analyze import CodePresence, MatchResult
 
@@ -54,8 +54,15 @@ def prompts():
 
 
 @pytest.fixture
-def compare_act_codes(cli, api, gen_session, prompts, analyze, sheet_writer):
-    return CompareActivityCodes(cli, api, gen_session, prompts, analyze, sheet_writer)
+def raw_writer():
+    return Mock(spec=RawPlayloadService)
+
+
+@pytest.fixture
+def compare_act_codes(cli, api, gen_session, prompts, analyze, sheet_writer, raw_writer):
+    return CompareActivityCodes(
+        cli, api, gen_session, prompts, analyze, sheet_writer, raw_writer
+    )
 
 
 @pytest.fixture
@@ -86,6 +93,7 @@ def business_unit():
 
 
 def test_comparison_passes_data_through_workflow(
+    raw_writer,
     compare_act_codes,
     cli,
     api,
@@ -124,12 +132,15 @@ def test_comparison_passes_data_through_workflow(
 
     prompts.prompt_user_for_bus.assert_called_once_with([business_unit])
     analyze.analyze.assert_called_once_with([populated_bu])
+    sheet_writer.get_output_path.assert_called_once_with(file_name="compare_codes")
+    raw_writer.write_payloads.assert_called_once_with([populated_bu], output_path)
     sheet_writer.write_analyze.assert_called_once_with(
         [populated_bu], match_value, output_path
     )
 
 
 def test_only_selected_business_units_are_processed(
+    raw_writer,
     compare_act_codes,
     api,
     gen_session,
@@ -181,6 +192,9 @@ def test_only_selected_business_units_are_processed(
     ]
 
     analyze.analyze.assert_called_once_with([populated_a, populated_c])
+    raw_writer.write_payloads.assert_called_once_with(
+        [populated_a, populated_c], output_path
+    )
     sheet_writer.write_analyze.assert_called_once_with(
         [populated_a, populated_c],
         match_result,
@@ -284,3 +298,18 @@ def test_writer_fails(
         compare_act_codes.run()
 
     sheet_writer.write_analyze.assert_called_once()
+
+
+def test_raw_export_failure_stops_report_and_preserves_exception(
+    compare_act_codes, prompts, business_unit, raw_writer, analyze, sheet_writer
+):
+    prompts.prompt_user_for_bus.return_value = [business_unit]
+    error = PermissionError("Cannot save payload")
+    raw_writer.write_payloads.side_effect = error
+
+    with pytest.raises(PermissionError) as caught:
+        compare_act_codes.run()
+
+    assert caught.value is error
+    analyze.analyze.assert_not_called()
+    sheet_writer.write_analyze.assert_not_called()

@@ -62,9 +62,10 @@ def test_app_runs_comparison(app, monkeypatch):
     )
 
     workflow = Mock(spec=CompareActivityCodes)
+    workflow_factory = Mock(return_value=workflow)
     monkeypatch.setattr(
         "genesys_code_compare.app.CompareActivityCodes",
-        Mock(return_value=workflow),
+        workflow_factory,
     )
 
     app.prompts.welcome_menu.side_effect = [
@@ -77,6 +78,7 @@ def test_app_runs_comparison(app, monkeypatch):
 
     assert exc_info.value.code == 0
     workflow.run.assert_called_once_with()
+    assert workflow_factory.call_args.kwargs["raw_paylod_writer"] is app.raw_payload_writer
     assert app.prompts.welcome_menu.call_count == 2
 
 

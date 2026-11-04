@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from ..file import AnalyzeSheetService
     from ..models.genesys import BusinessUnit, Region
     from ..models.network import AccessToken
+    from ..file import RawPlayloadService
 
 
 class CompareActivityCodes:
@@ -22,12 +23,14 @@ class CompareActivityCodes:
         prompts: Prompts,
         analyzer: ActivityCodeAnalyze,
         reports: AnalyzeSheetService,
+        raw_paylod_writer: RawPlayloadService,
     ):
         self._gen_api = gen_api
         self._gen_session = gen_session
         self._prompts = prompts
         self._analyzer = analyzer
         self._reports = reports
+        self._raw_payload_writer = raw_paylod_writer
 
     def run(self) -> None:
         token = self._gen_session.get_valid_token()
@@ -36,9 +39,10 @@ class CompareActivityCodes:
         business_units = self._gen_api.get_business_units(token, region)
         selected = self._prompts.prompt_user_for_bus(business_units)
         populated = self._get_all_bus_activity_codes(token, region, selected)
+        compare_output = self._reports.get_output_path(file_name="compare_codes")
+        self._raw_payload_writer.write_payloads(populated, compare_output)
         result = self._analyzer.analyze(populated)
-        output = self._reports.get_output_path()
-        self._reports.write_analyze(populated, result, output)
+        self._reports.write_analyze(populated, result, compare_output)
 
     def _get_all_bus_activity_codes(
         self, token: AccessToken, region: Region, business_units: list[BusinessUnit]
